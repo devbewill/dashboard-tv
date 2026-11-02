@@ -5,6 +5,7 @@ import { config } from "@/lib/config";
 
 export type DashboardData = {
   generatedAt: string;
+  city: string;
   dateLabel: string;
   timeLabel: string;
   weather: Weather | null;
@@ -35,6 +36,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   return {
     generatedAt: now.toISOString(),
+    city: config.city.name,
     dateLabel,
     timeLabel,
     weather,

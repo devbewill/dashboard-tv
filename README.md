@@ -9,8 +9,8 @@ le **5 notizie** più recenti. Next.js 16 (App Router) + TypeScript, nessun data
   probabilità di pioggia, vento, alba e tramonto.
 - **Appuntamenti di oggi** dal calendario Google `calimeroh24@gmail.com` (Google Calendar API v3,
   refresh token). Se le credenziali mancano la sezione resta vuota e il resto funziona lo stesso.
-- **5 notizie del giorno** dai feed RSS di ANSA (top news) e Repubblica, ordinate per ora,
-  senza duplicati.
+- **5 notizie del giorno su Milano**: feed RSS di Il Giorno (Milano) e ANSA Lombardia,
+  ordinate per ora, senza duplicati.
 
 ## Avvio
 

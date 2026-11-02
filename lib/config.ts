@@ -7,9 +7,10 @@ export const config = {
   timezone: "Europe/Rome",
   news: {
     limit: 5,
+    // Fonti locali: cronaca di Milano e Lombardia.
     feeds: [
-      { name: "ANSA", url: "https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml" },
-      { name: "Repubblica", url: "https://www.repubblica.it/rss/homepage/rss2.0.xml" },
+      { name: "Il Giorno", url: "https://www.ilgiorno.it/milano/rss" },
+      { name: "ANSA Lombardia", url: "https://www.ansa.it/lombardia/notizie/lombardia_rss.xml" },
     ],
   },
   revalidateSeconds: 300,
