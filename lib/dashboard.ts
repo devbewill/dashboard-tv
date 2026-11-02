@@ -1,4 +1,4 @@
-import { getTodayAppointments, type Appointment } from "@/lib/calendar";
+import { getUpcomingAppointments, type Appointment } from "@/lib/calendar";
 import { getTopNews, type NewsItem } from "@/lib/news";
 import { getWeather, type Weather } from "@/lib/weather";
 import { config } from "@/lib/config";
@@ -16,7 +16,7 @@ export type DashboardData = {
 export async function getDashboardData(): Promise<DashboardData> {
   const [weather, appointments, news] = await Promise.all([
     getWeather(),
-    getTodayAppointments(),
+    getUpcomingAppointments(),
     getTopNews(),
   ]);
 

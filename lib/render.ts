@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import type { DashboardData } from "./dashboard";
+import { weatherIcon } from "./icons";
 
 /**
  * Renderer PNG della dashboard per il Chromecast.
@@ -12,35 +13,41 @@ import type { DashboardData } from "./dashboard";
 
 const W = 1920;
 const H = 1080;
-const M = 56;
+const M = 48;
 
+/**
+ * Pensata per un 32" visto da circa 4 metri: testi grandi, pesi pieni e grigi scuri.
+ * Il "muted" resta sopra 10:1 di contrasto sul fondo, le linee sono da 2px.
+ */
 const COLORS = {
-  paper: "#faf9f5",
-  ink: "#1a1a17",
-  muted: "#4c4a44",
-  hairline: "#dedcd3",
+  paper: "#fbfaf6",
+  ink: "#0f0f0d",
+  muted: "#36342e",
+  hairline: "#b4b1a6",
 };
 
 const SIZES = {
-  city: 20,
-  date: 30,
-  clock: 66,
-  label: 18,
-  newsIndex: 22,
-  newsTitle: 30,
-  newsMeta: 20,
-  temp: 100,
-  desc: 30,
-  rowLabel: 24,
-  rowValue: 24,
-  agendaTime: 24,
-  agendaTitle: 26,
-  footer: 18,
+  date: 46,
+  clock: 96,
+  label: 28,
+  newsIndex: 32,
+  newsTitle: 40,
+  newsMeta: 28,
+  temp: 170,
+  partLabel: 28,
+  partTemp: 38,
+  agendaTime: 30,
+  agendaTitle: 36,
+  empty: 34,
 };
 
-const LEFT_W = 1000;
-const RIGHT_X = M + LEFT_W + 56;
+/** Peso unico per tutto il testo: Inter ExtraBold, il più leggibile da lontano. */
+const WEIGHT = 800;
+
+const LEFT_W = 1060;
+const RIGHT_X = M + LEFT_W + 64;
 const RIGHT_W = W - RIGHT_X - M;
+const BOTTOM = H - M;
 
 function escapeXml(value: string): string {
   return value
@@ -51,9 +58,9 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** Larghezza stimata: Inter è mediamente ~0.52em per carattere. */
+/** Larghezza stimata: Inter ExtraBold è mediamente ~0.53em per carattere. */
 function textWidth(text: string, size: number): number {
-  return text.length * size * 0.52;
+  return text.length * size * 0.53;
 }
 
 function wrap(text: string, size: number, maxWidth: number, maxLines: number): string[] {
@@ -90,136 +97,139 @@ function text(
   fill: string,
   extra = "",
 ): string {
-  return `<text x="${x}" y="${y}" font-family="Inter" font-size="${size}" fill="${fill}" ${extra}>${escapeXml(content)}</text>`;
+  return `<text x="${x}" y="${y}" font-family="Inter" font-size="${size}" font-weight="${WEIGHT}" fill="${fill}" ${extra}>${escapeXml(content)}</text>`;
 }
 
 function line(x1: number, y1: number, x2: number, y2: number): string {
-  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${COLORS.hairline}" stroke-width="1"/>`;
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${COLORS.hairline}" stroke-width="2"/>`;
+}
+
+/** Etichetta di sezione + linea sotto; restituisce la y da cui partire col contenuto. */
+function sectionLabel(parts: string[], x: number, y: number, width: number, label: string): number {
+  parts.push(text(x, y, label, SIZES.label, COLORS.ink, 'letter-spacing="3"'));
+  parts.push(line(x, y + 16, x + width, y + 16));
+  return y + 16;
 }
 
 export function buildSvg(data: DashboardData): string {
   const parts: string[] = [];
-  const now = new Date(data.generatedAt);
 
   // ---------- testata ----------
-  parts.push(text(M, M + 18, data.city.toUpperCase(), SIZES.city, COLORS.muted, 'letter-spacing="3.4"'));
-  parts.push(text(M, M + 18 + SIZES.date + 12, data.dateLabel.charAt(0).toUpperCase() + data.dateLabel.slice(1), SIZES.date, COLORS.ink));
-  parts.push(text(W - M, M + 52, data.timeLabel, SIZES.clock, COLORS.ink, 'text-anchor="end"'));
-  parts.push(line(M, M + 96, W - M, M + 96));
+  const date = data.dateLabel.charAt(0).toUpperCase() + data.dateLabel.slice(1);
+  parts.push(text(M, M + 66, `${date} · ${data.city}`, SIZES.date, COLORS.ink));
+  parts.push(text(W - M, M + 78, data.timeLabel, SIZES.clock, COLORS.ink, 'text-anchor="end"'));
+  const headerLineY = M + 108;
+  parts.push(line(M, headerLineY, W - M, headerLineY));
 
-  let y = M + 96 + 44;
+  const top = headerLineY + 56;
 
   // ---------- colonna sinistra: notizie ----------
-  parts.push(text(M, y, "NOTIZIE", SIZES.label, COLORS.muted, 'letter-spacing="3"'));
-  y += 18;
-  parts.push(line(M, y, M + LEFT_W, y));
-  y += 22;
+  let y = sectionLabel(parts, M, top, LEFT_W, "NOTIZIE");
 
-  // Altezza disponibile fra l'intestazione e la linea del piede.
-  const footerLineY = H - M - 40;
-  const limit = footerLineY - 12;
-  const budget = limit - y;
-
+  const titleLead = SIZES.newsTitle + 10;
+  const textX = M + 72;
   const blocks = data.news.map((item) => ({
     item,
-    titleLines: wrap(item.title, SIZES.newsTitle, LEFT_W - 70, 2),
+    titleLines: wrap(item.title, SIZES.newsTitle, LEFT_W - (textX - M), 2),
   }));
-
+  const pad = 10;
   const naturalHeights = blocks.map(
-    (block) => block.titleLines.length * (SIZES.newsTitle + 10) + SIZES.newsMeta + 6,
+    (block) => pad + block.titleLines.length * titleLead + SIZES.newsMeta + 8 + pad,
   );
   const totalHeight = naturalHeights.reduce((sum, h) => sum + h, 0);
-  const gap = Math.min(
-    34,
-    Math.max(6, Math.floor((budget - totalHeight) / Math.max(1, blocks.length))),
-  );
+  const extra = Math.max(0, Math.floor((BOTTOM - y - totalHeight) / Math.max(1, blocks.length)));
+  const itemGap = Math.min(24, extra);
 
   for (const [index, block] of blocks.entries()) {
-    const rowHeight = naturalHeights[index];
-    if (y + rowHeight > limit) break;
+    const rowHeight = naturalHeights[index] + itemGap;
+    if (y + rowHeight > BOTTOM + 4) break;
 
-    parts.push(text(M, y + SIZES.newsIndex, String(index + 1).padStart(2, "0"), SIZES.newsIndex, COLORS.muted));
-    let ty = y + SIZES.newsTitle;
+    const first = y + pad + itemGap / 2 + SIZES.newsTitle;
+    parts.push(
+      text(M, first, String(index + 1).padStart(2, "0"), SIZES.newsIndex, COLORS.muted),
+    );
+    let ty = first;
     for (const tl of block.titleLines) {
-      parts.push(text(M + 62, ty, tl, SIZES.newsTitle, COLORS.ink));
-      ty += SIZES.newsTitle + 10;
+      parts.push(text(textX, ty, tl, SIZES.newsTitle, COLORS.ink));
+      ty += titleLead;
     }
     parts.push(
-      text(M + 62, ty + 4, `${block.item.source} · ${block.item.time}`, SIZES.newsMeta, COLORS.muted),
+      text(textX, ty - 6, `${block.item.source} · ${block.item.time}`, SIZES.newsMeta, COLORS.muted),
     );
     y += rowHeight;
-    parts.push(line(M, y, M + LEFT_W, y));
-    y += gap;
+    if (index < blocks.length - 1) parts.push(line(M, y, M + LEFT_W, y));
   }
   if (data.news.length === 0) {
-    parts.push(text(M, y + 24, "Nessuna notizia disponibile.", SIZES.desc, COLORS.muted));
+    parts.push(text(M, y + 60, "Nessuna notizia disponibile.", SIZES.empty, COLORS.muted));
   }
 
   // ---------- colonna destra: meteo ----------
-  let ry = M + 96 + 44;
-  parts.push(text(RIGHT_X, ry, "METEO", SIZES.label, COLORS.muted, 'letter-spacing="3"'));
-  ry += 18;
-  parts.push(line(RIGHT_X, ry, RIGHT_X + RIGHT_W, ry));
-  ry += 22;
+  let ry = sectionLabel(parts, RIGHT_X, top, RIGHT_W, "METEO");
 
   const weather = data.weather;
   if (weather) {
-    parts.push(text(RIGHT_X, ry + SIZES.temp, String(weather.temperature), SIZES.temp, COLORS.ink));
-    const tempWidth = textWidth(String(weather.temperature), SIZES.temp);
-    parts.push(text(RIGHT_X + tempWidth + 10, ry + SIZES.temp - 34, "°C", SIZES.desc, COLORS.muted));
-    ry += SIZES.temp + 34;
-    parts.push(text(RIGHT_X, ry, weather.description, SIZES.desc, COLORS.ink));
-    ry += 26;
+    // Una sola riga: temperatura attuale a sinistra, mattina/pomeriggio/sera a destra.
+    const top = ry + 28;
+    const tempBaseline = top + Math.round(SIZES.temp * 0.74);
+    const temp = String(weather.temperature);
+    parts.push(text(RIGHT_X - 6, tempBaseline, temp, SIZES.temp, COLORS.ink, 'letter-spacing="-4"'));
+    parts.push(text(RIGHT_X + textWidth(temp, SIZES.temp) - 4, tempBaseline - 70, "°", 90, COLORS.ink));
 
-    const rows: Array<[string, string]> = [
-      ["Min / max", `${weather.min}° / ${weather.max}°`],
-      ["Percepita", `${weather.apparent}°`],
-      ["Pioggia", `${weather.precipitationChance}%`],
-      ["Vento", `${weather.wind} km/h`],
-      ["Alba / tramonto", `${weather.sunrise} / ${weather.sunset}`],
-    ];
-    for (const [label, value] of rows) {
-      ry += 18;
-      parts.push(line(RIGHT_X, ry, RIGHT_X + RIGHT_W, ry));
-      ry += SIZES.rowLabel + 14;
-      parts.push(text(RIGHT_X, ry, label, SIZES.rowLabel, COLORS.muted));
-      parts.push(text(RIGHT_X + RIGHT_W, ry, value, SIZES.rowValue, COLORS.ink, 'text-anchor="end"'));
-    }
+    const partsX = RIGHT_X + 240;
+    const colW = (RIGHT_X + RIGHT_W - partsX) / weather.parts.length;
+    const iconSize = 96;
+    weather.parts.forEach((part, i) => {
+      const cx = partsX + colW * i + colW / 2;
+      const scale = iconSize / 64;
+      parts.push(
+        `<g transform="translate(${cx - iconSize / 2} ${top - 8}) scale(${scale})">${weatherIcon(part.sky, COLORS.ink, COLORS.paper)}</g>`,
+      );
+      parts.push(
+        text(cx, top + iconSize + 26, part.label, SIZES.partLabel, COLORS.muted, 'text-anchor="middle"'),
+      );
+      parts.push(
+        text(cx, top + iconSize + 26 + 44, `${part.temperature}°`, SIZES.partTemp, COLORS.ink, 'text-anchor="middle"'),
+      );
+    });
+    ry = top + iconSize + 26 + 44;
   } else {
-    parts.push(text(RIGHT_X, ry + 30, "Meteo non disponibile.", SIZES.desc, COLORS.muted));
-    ry += 60;
+    parts.push(text(RIGHT_X, ry + 60, "Meteo non disponibile.", SIZES.empty, COLORS.muted));
+    ry += 70;
   }
 
-  // ---------- colonna destra: appuntamenti ----------
-  ry += 64;
-  parts.push(text(RIGHT_X, ry, "APPUNTAMENTI", SIZES.label, COLORS.muted, 'letter-spacing="3"'));
-  ry += 18;
-  parts.push(line(RIGHT_X, ry, RIGHT_X + RIGHT_W, ry));
-  ry += 24;
+  // ---------- colonna destra: prossimi appuntamenti ----------
+  ry = sectionLabel(parts, RIGHT_X, ry + 72, RIGHT_W, "PROSSIMI APPUNTAMENTI");
 
   if (data.appointments.length === 0) {
-    parts.push(text(RIGHT_X, ry + 20, "Nessun appuntamento oggi.", SIZES.desc, COLORS.muted));
+    parts.push(text(RIGHT_X, ry + 58, "Nessun appuntamento in programma.", SIZES.empty, COLORS.muted));
   } else {
-    for (const event of data.appointments.slice(0, 4)) {
-      const when = event.allDay ? "tutto il giorno" : event.time;
-      parts.push(text(RIGHT_X, ry + SIZES.agendaTime, when, SIZES.agendaTime, COLORS.muted));
-      const lines = wrap(event.title, SIZES.agendaTitle, RIGHT_W - 150, 2);
-      let ty = ry + SIZES.agendaTitle;
-      for (const tl of lines) {
-        parts.push(text(RIGHT_X + 140, ty, tl, SIZES.agendaTitle, COLORS.ink));
-        ty += SIZES.agendaTitle + 8;
+    const lead = SIZES.agendaTitle + 8;
+    const shown = data.appointments;
+    for (const [index, event] of shown.entries()) {
+      const lines = wrap(event.title, SIZES.agendaTitle, RIGHT_W, 2);
+      const height = 14 + SIZES.agendaTime + 10 + lines.length * lead + 4;
+      const remaining = shown.length - index;
+      if (ry + height > BOTTOM + 4) {
+        parts.push(text(RIGHT_X, ry + 44, `+ altri ${remaining}`, SIZES.agendaTime, COLORS.muted));
+        break;
       }
-      ry = ty + 14;
-      parts.push(line(RIGHT_X, ry, RIGHT_X + RIGHT_W, ry));
-      ry += 14;
+      // Riga 1: giorno (in nero) · ora; riga 2: titolo.
+      const metaY = ry + 14 + SIZES.agendaTime;
+      const when = event.allDay ? "tutto il giorno" : event.time;
+      parts.push(
+        `<text x="${RIGHT_X}" y="${metaY}" font-family="Inter" font-size="${SIZES.agendaTime}" font-weight="${WEIGHT}">` +
+          `<tspan fill="${COLORS.ink}">${escapeXml(event.day)}</tspan>` +
+          `<tspan fill="${COLORS.muted}"> · ${escapeXml(when)}</tspan></text>`,
+      );
+      let ty = metaY + 10 + SIZES.agendaTitle;
+      for (const tl of lines) {
+        parts.push(text(RIGHT_X, ty, tl, SIZES.agendaTitle, COLORS.ink));
+        ty += lead;
+      }
+      ry += height;
+      if (index < shown.length - 1) parts.push(line(RIGHT_X, ry, RIGHT_X + RIGHT_W, ry));
     }
   }
-
-  // ---------- piede ----------
-  const footerY = H - M;
-  parts.push(line(M, footerY - 40, W - M, footerY - 40));
-  parts.push(text(M, footerY, `Aggiornato alle ${data.timeLabel}`, SIZES.footer, COLORS.muted));
-  parts.push(text(W - M, footerY, `${data.city} · dashboard-tv`, SIZES.footer, COLORS.muted, 'text-anchor="end"'));
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" fill="${COLORS.paper}"/>

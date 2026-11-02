@@ -5,10 +5,11 @@ le **5 notizie** più recenti. Next.js 16 (App Router) + TypeScript, nessun data
 
 ## Cosa mostra
 
-- **Meteo di oggi** a Milano (Open-Meteo, nessuna API key): temperatura, percepita, min/max,
-  probabilità di pioggia, vento, alba e tramonto.
-- **Appuntamenti di oggi** dal calendario Google `calimeroh24@gmail.com` (Google Calendar API v3,
-  refresh token). Se le credenziali mancano la sezione resta vuota e il resto funziona lo stesso.
+- **Meteo di oggi** a Milano (Open-Meteo, nessuna API key): temperatura attuale e un'icona per
+  mattina (7–12), pomeriggio (13–18) e sera (19–23) con la temperatura media della fascia.
+  L'icona rappresenta il fenomeno più significativo della fascia (codice WMO più alto).
+- **Prossimi appuntamenti** (in corso e futuri, entro 30 giorni, max 8) dal calendario Google `calimeroh24@gmail.com` (Google Calendar API v3,
+  service account). Se le credenziali mancano la sezione resta vuota e il resto funziona lo stesso.
 - **5 notizie del giorno su Milano**: feed RSS di Il Giorno (Milano) e ANSA Lombardia,
   ordinate per ora, senza duplicati.
 
@@ -17,6 +18,7 @@ le **5 notizie** più recenti. Next.js 16 (App Router) + TypeScript, nessun data
 ```bash
 npm install
 cp .env.example .env.local   # poi compila le variabili Google (opzionali)
+# e copia la chiave del service account in .secrets/google-service-account.json
 npm run dev                  # http://localhost:3000
 ```
 
@@ -36,14 +38,17 @@ Tutte opzionali tranne l'assenza delle quali si perde solo la sezione appuntamen
 
 | Variabile | Uso |
 |---|---|
-| `GOOGLE_CLIENT_ID` | client OAuth (Desktop) del progetto Google |
-| `GOOGLE_CLIENT_SECRET` | secret dello stesso client |
-| `GOOGLE_REFRESH_TOKEN` | refresh token con scope `calendar` |
-| `GOOGLE_CALENDAR_ID` | calendario da leggere, default `primary` |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | percorso della chiave JSON del service account, es. `.secrets/google-service-account.json` |
+| `GOOGLE_CALENDAR_ID` | email del calendario da leggere, es. `calimeroh24@gmail.com` (non `primary`) |
 
-Il refresh token del progetto Google in uso scade circa ogni 7 giorni (app OAuth in stato
-*Testing*): quando le news e il meteo funzionano ma gli appuntamenti spariscono, la causa è
-quasi sempre quella. Il log del server stampa `[calendar] accesso negato: …`.
+Il calendario si legge con il service account
+`dashboard-tv@charged-epsilon-510314-s8.iam.gserviceaccount.com` (progetto Google Cloud
+"minipc" dell'account calimeroh24). Non c'è consenso OAuth né refresh token: l'accesso non
+scade. Funziona perché il calendario è **condiviso in sola lettura** con quell'email
+(Google Calendar → Impostazioni del calendario → Condividi con persone specifiche).
+La chiave sta in `.secrets/` (ignorata da git): sul minipc va copiata a mano.
+Se gli appuntamenti spariscono, il log del server stampa `[calendar] …`; un `HTTP 404`
+significa che la condivisione è stata rimossa.
 
 ## Struttura
 
@@ -55,16 +60,19 @@ app/
   api/dashboard/      # JSON con gli stessi dati, utile per debug e casting
 lib/
   config.ts           # città, fusi, feed, limiti
-  weather.ts          # Open-Meteo + codici WMO in italiano
-  calendar.ts         # refresh token + eventi di oggi (Europe/Rome)
+  weather.ts          # Open-Meteo + codici WMO in italiano + fasce della giornata
+  icons.ts            # icone meteo SVG (sole, nuvole, pioggia, neve, …) per pagina e PNG
+  calendar.ts         # service account (JWT) + prossimi eventi con "Oggi"/"Domani"/"Gio 5"
   news.ts             # parser RSS, dedup, ultime N
   dashboard.ts        # composizione dei dati
 ```
 
 ## Stile
 
-Minimal "e-ink" come il progetto flatting: fondo carta, testo inchiostro, hairline da 1px come
-unici separatori, nessuna ombra, nessun gradiente, nessuna icona. Palette e tipografia vivono
+Minimal "e-ink" come il progetto flatting: fondo carta, testo inchiostro, linee da 2px come
+unici separatori, nessuna ombra, nessun gradiente; le uniche icone sono quelle meteo,
+monocromatiche. Dimensionata per un 32" visto da ~4 m: titoli notizie 40px, temperatura 170px,
+grigi scuri (contrasto > 10:1). Palette e tipografia vivono
 nelle variabili CSS di `app/globals.css`; i colori non vanno mai scritti dentro le classi.
 I numeri usano `tabular-nums`.
 

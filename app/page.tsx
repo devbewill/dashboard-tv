@@ -1,5 +1,6 @@
 import { getDashboardData } from "@/lib/dashboard";
 import { config } from "@/lib/config";
+import { weatherIcon } from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +11,8 @@ export default async function Home() {
   return (
     <>
       <header className="masthead">
-        <div>
-          <div className="masthead__city">{config.city.name}</div>
-          <div className="masthead__date">{data.dateLabel}</div>
+        <div className="masthead__date">
+          {data.dateLabel} · {config.city.name}
         </div>
         <div className="masthead__clock">{data.timeLabel}</div>
       </header>
@@ -43,71 +43,54 @@ export default async function Home() {
           <h2 className="section__label">Meteo</h2>
           {weather ? (
             <>
-              <div>
-                <div className="weather__now">
-                  <span className="weather__temp">{weather.temperature}</span>
-                  <span className="weather__unit">°C</span>
-                </div>
-                <p className="weather__desc">{weather.description}</p>
+              <div className="weather">
+              <div className="weather__now">
+                <span className="weather__temp">{weather.temperature}</span>
+                <span className="weather__unit">°</span>
               </div>
-              <dl className="weather__rows">
-                <div className="weather__row">
-                  <dt>Min / max</dt>
-                  <dd>
-                    {weather.min}° / {weather.max}°
-                  </dd>
-                </div>
-                <div className="weather__row">
-                  <dt>Percepita</dt>
-                  <dd>{weather.apparent}°</dd>
-                </div>
-                <div className="weather__row">
-                  <dt>Pioggia</dt>
-                  <dd>{weather.precipitationChance}%</dd>
-                </div>
-                <div className="weather__row">
-                  <dt>Vento</dt>
-                  <dd>{weather.wind} km/h</dd>
-                </div>
-                <div className="weather__row">
-                  <dt>Alba / tramonto</dt>
-                  <dd>
-                    {weather.sunrise} / {weather.sunset}
-                  </dd>
-                </div>
-              </dl>
+              <ul className="weather__parts">
+                {weather.parts.map((part) => (
+                  <li className="weather__part" key={part.label}>
+                    <svg
+                      className="weather__icon"
+                      viewBox="0 0 64 64"
+                      role="img"
+                      aria-label={part.description}
+                      dangerouslySetInnerHTML={{
+                        __html: weatherIcon(part.sky, "currentColor", "var(--paper)"),
+                      }}
+                    />
+                    <span className="weather__part-label">{part.label}</span>
+                    <span className="weather__part-temp">{part.temperature}°</span>
+                  </li>
+                ))}
+              </ul>
+              </div>
             </>
           ) : (
             <p className="empty">Meteo non disponibile.</p>
           )}
 
-          <h2 className="section__label" style={{ marginTop: "calc(var(--gap) * 0.6)" }}>
-            Appuntamenti
+          <h2 className="section__label" style={{ marginTop: "calc(var(--gap) * 0.8)" }}>
+            Prossimi appuntamenti
           </h2>
           {appointments.length === 0 ? (
-            <p className="empty">Nessun appuntamento oggi.</p>
+            <p className="empty">Nessun appuntamento in programma.</p>
           ) : (
             <ul className="agenda">
               {appointments.map((event) => (
                 <li className="agenda__item" key={event.id}>
-                  <span className="agenda__time">
+                  <p className="agenda__when">
+                    <span className="agenda__day">{event.day}</span> ·{" "}
                     {event.allDay ? "tutto il giorno" : event.time}
-                  </span>
-                  <div>
-                    <p className="agenda__title">{event.title}</p>
-                    {event.location ? <p className="agenda__where">{event.location}</p> : null}
-                  </div>
+                  </p>
+                  <p className="agenda__title">{event.title}</p>
                 </li>
               ))}
             </ul>
           )}
         </section>
       </main>
-
-      <footer className="footer">
-        <span>Aggiornato alle {data.timeLabel}</span>
-        <span>dashboard-tv</span>
-      </footer>
     </>
   );
 }
