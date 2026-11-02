@@ -86,6 +86,26 @@ Procedura verificata: si apre l'URL con Chrome headless sul PC fisso, si salva i
 serve da HTTP sul minipc e lo si invia con `pychromecast`. Per accendere la TV da spenta serve
 forzare un cambio app sul Chromecast prima del cast (vedi skill `home-network-displays`).
 
+## Schedulazione sul minipc
+
+Tre unit systemd utente (`~/.config/systemd/user/`):
+
+| unit | cosa fa |
+|---|---|
+| `dashboard-tv.service` | serve l'app su `:3310`, `Restart=always` |
+| `dashboard-tv-cast.service` | oneshot: pre-riscalda la PNG, poi lancia `scripts/cast_dashboard.py` |
+| `dashboard-tv-cast.timer` | Lun-Ven 08:10, Sab-Dom 09:00 (ora italiana) |
+
+```bash
+systemctl --user list-timers dashboard-tv-cast.timer
+systemctl --user start dashboard-tv-cast.service   # prova subito
+journalctl --user -u dashboard-tv-cast.service -n 20
+```
+
+Il fuso è dichiarato dentro la regola (`Europe/Rome`) perché l'orologio del sistema è UTC:
+così gli orari italiani restano corretti anche con l'ora legale. `Persistent=false`: se il
+minipc era spento all'orario previsto, il cast non parte in ritardo.
+
 ## Verifica
 
 ```bash
