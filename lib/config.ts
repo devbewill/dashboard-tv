@@ -6,7 +6,7 @@ export const config = {
   },
   timezone: "Europe/Rome",
   news: {
-    limit: 10,
+    limit: 5,
     // Una sola fonte: due feed producevano titoli doppi sulla stessa notizia.
     // Corriere della Sera, feed home (il feed della cronaca di Milano è morto: fermo al 2012).
     feeds: [
