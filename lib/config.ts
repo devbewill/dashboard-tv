@@ -6,7 +6,7 @@ export const config = {
   },
   timezone: "Europe/Rome",
   news: {
-    limit: 5,
+    limit: 10,
     // Fonti locali: cronaca di Milano e Lombardia.
     feeds: [
       { name: "Il Giorno", url: "https://www.ilgiorno.it/milano/rss" },

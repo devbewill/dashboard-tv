@@ -26,13 +26,7 @@ export default async function Home() {
             <ol className="news">
               {news.map((item, index) => (
                 <li className="news__item" key={`${item.link}-${index}`}>
-                  <span className="news__index">{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <h3 className="news__title">{item.title}</h3>
-                    <p className="news__meta">
-                      {item.source} · {item.time}
-                    </p>
-                  </div>
+                  <h3 className="news__title">{item.title}</h3>
                 </li>
               ))}
             </ol>

@@ -126,41 +126,42 @@ export function buildSvg(data: DashboardData): string {
   // ---------- colonna sinistra: notizie ----------
   let y = sectionLabel(parts, M, top, LEFT_W, "NOTIZIE");
 
-  const titleLead = SIZES.newsTitle + 10;
-  const textX = M + 72;
-  const blocks = data.news.map((item) => ({
-    item,
-    titleLines: wrap(item.title, SIZES.newsTitle, LEFT_W - (textX - M), 2),
-  }));
-  const pad = 10;
-  const naturalHeights = blocks.map(
-    (block) => pad + block.titleLines.length * titleLead + SIZES.newsMeta + 8 + pad,
-  );
-  const totalHeight = naturalHeights.reduce((sum, h) => sum + h, 0);
-  const extra = Math.max(0, Math.floor((BOTTOM - y - totalHeight) / Math.max(1, blocks.length)));
-  const itemGap = Math.min(24, extra);
-
-  for (const [index, block] of blocks.entries()) {
-    const rowHeight = naturalHeights[index] + itemGap;
-    if (y + rowHeight > BOTTOM + 4) break;
-
-    const first = y + pad + itemGap / 2 + SIZES.newsTitle;
-    parts.push(
-      text(M, first, String(index + 1).padStart(2, "0"), SIZES.newsIndex, COLORS.muted),
-    );
-    let ty = first;
-    for (const tl of block.titleLines) {
-      parts.push(text(textX, ty, tl, SIZES.newsTitle, COLORS.ink));
-      ty += titleLead;
-    }
-    parts.push(
-      text(textX, ty - 6, `${block.item.source} · ${block.item.time}`, SIZES.newsMeta, COLORS.muted),
-    );
-    y += rowHeight;
-    if (index < blocks.length - 1) parts.push(line(M, y, M + LEFT_W, y));
-  }
-  if (data.news.length === 0) {
+  const items = data.news;
+  if (items.length === 0) {
     parts.push(text(M, y + 60, "Nessuna notizia disponibile.", SIZES.empty, COLORS.muted));
+  } else {
+    // Solo titoli: niente numero, fonte o orario (più spazio utile). Il corpo si
+    // riduce quanto basta perché entrino TUTTE le notizie, max 2 righe per titolo.
+    const avail = BOTTOM - y - 6;
+    const maxLines = 2;
+    let size = SIZES.newsTitle;
+    let lead = size + 8;
+    let wrapped: string[][] = items.map((it) => wrap(it.title, size, LEFT_W, maxLines));
+    for (let s = SIZES.newsTitle; s >= 24; s -= 2) {
+      const lh = s + 8;
+      const ls = items.map((it) => wrap(it.title, s, LEFT_W, maxLines));
+      const titlesHeight = ls.reduce((sum, l) => sum + l.length * lh, 0);
+      const minGaps = 6 * (items.length - 1);
+      size = s;
+      lead = lh;
+      wrapped = ls;
+      if (titlesHeight + minGaps <= avail) break;
+    }
+    const titlesHeight = wrapped.reduce((sum, l) => sum + l.length * lead, 0);
+    const gap = Math.min(26, Math.max(6, (avail - titlesHeight) / Math.max(1, items.length - 1)));
+    let cy = y;
+    for (const [index, lines] of wrapped.entries()) {
+      let ty = cy + size;
+      for (const tl of lines) {
+        parts.push(text(M, ty, tl, size, COLORS.ink));
+        ty += lead;
+      }
+      cy += lines.length * lead;
+      if (index < wrapped.length - 1) {
+        cy += gap;
+        parts.push(line(M, cy - gap / 2, M + LEFT_W, cy - gap / 2));
+      }
+    }
   }
 
   // ---------- colonna destra: meteo ----------
