@@ -7,10 +7,10 @@ export const config = {
   timezone: "Europe/Rome",
   news: {
     limit: 10,
-    // Fonti locali: cronaca di Milano e Lombardia.
+    // Una sola fonte: due feed producevano titoli doppi sulla stessa notizia.
+    // Corriere della Sera, feed home (il feed della cronaca di Milano è morto: fermo al 2012).
     feeds: [
-      { name: "Il Giorno", url: "https://www.ilgiorno.it/milano/rss" },
-      { name: "ANSA Lombardia", url: "https://www.ansa.it/lombardia/notizie/lombardia_rss.xml" },
+      { name: "Corriere della Sera", url: "https://www.corriere.it/rss/homepage.xml" },
     ],
   },
   revalidateSeconds: 300,
